@@ -29,6 +29,15 @@ with mp_hands.Hands(
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     if results.multi_hand_landmarks:
       for hand_landmarks in results.multi_hand_landmarks:
+        index_finger_insertion = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_MCP]
+        pinky_finger_insertion = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_MCP]
+        angle = degrees(atan2(
+          (pinky_finger_insertion.z - index_finger_insertion.z ), 
+          (pinky_finger_insertion.x - index_finger_insertion.x )
+        ))
+
+        print(f"           ", end="\r")
+        print(f"~{angle:.2f}º", end="\r")
         mp_drawing.draw_landmarks(
             image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
     cv2.imshow('MediaPipe Hands', image)

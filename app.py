@@ -1,6 +1,6 @@
 import cv2
 import mediapipe as mp
-from math import atan2, degrees, radians;
+from math import atan2, degrees, radians, sqrt;
 mp_drawing = mp.solutions.drawing_utils
 mp_hands = mp.solutions.hands
 
@@ -32,8 +32,13 @@ with mp_hands.Hands(
         index_finger_insertion = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_MCP]
         pinky_finger_insertion = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_MCP]
         angle = degrees(atan2(
-          (pinky_finger_insertion.z - index_finger_insertion.z ), 
-          (pinky_finger_insertion.x - index_finger_insertion.x )
+          (pinky_finger_insertion.z - index_finger_insertion.z), 
+          (
+            sqrt(
+              (pinky_finger_insertion.x - index_finger_insertion.x) ** 2 + 
+              (pinky_finger_insertion.y - index_finger_insertion.y) ** 2
+            )
+          )
         ))
 
         print(f"           ", end="\r")

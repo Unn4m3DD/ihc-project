@@ -31,6 +31,8 @@ with mp_hands.Hands(
       for hand_landmarks in results.multi_hand_landmarks:
         index_finger_insertion = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_MCP]
         pinky_finger_insertion = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_MCP]
+        ring_finger_tip = hand_landmarks.landmark[mp_hands.HandLandmark.RING_FINGER_TIP]
+        wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
         angle = degrees(atan2(
           (pinky_finger_insertion.z - index_finger_insertion.z), 
           (
@@ -40,9 +42,13 @@ with mp_hands.Hands(
             )
           )
         ))
-
-        print(f"           ", end="\r")
-        print(f"~{angle:.2f}º", end="\r")
+        closed = sqrt(
+              (ring_finger_tip.x - wrist.x) ** 2 + 
+              (ring_finger_tip.y - wrist.y) ** 2 + 
+              (ring_finger_tip.z - wrist.z) ** 2
+        )
+        print(f"                            ", end="\r")
+        print(f"~{angle:.2f}º, closed metric {closed}", end="\r")
         mp_drawing.draw_landmarks(
             image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
     cv2.imshow('MediaPipe Hands', image)

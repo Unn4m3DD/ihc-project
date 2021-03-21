@@ -4,25 +4,31 @@ import cv2
 import mediapipe as mp
 import signal
 import sys
+import time
 from math import atan2, degrees, radians, sqrt
 mp_drawing = mp.solutions.drawing_utils
 mp_hands = mp.solutions.hands
 
-OFFSET = 0.1
+CAMERA_OFFSET = 0.1
+SOCKET_CONNECTION = False
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
 
 def signal_handler(signal, frame):
   sock.close()
   sys.exit(0)
 
-
 signal.signal(signal.SIGINT, signal_handler)
 
-
 def get_hand_info():
-  sock.connect(('127.0.0.1', 42069))
+  if SOCKET_CONNECTION:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+      sock.connect(('127.0.0.1', 42069))
+    except Exception as e:
+      print(str(e))
+      time.sleep(4)
+      return
   cap = cv2.VideoCapture(0)
   with mp_hands.Hands(
           min_detection_confidence=0.8,
@@ -30,8 +36,8 @@ def get_hand_info():
     while cap.isOpened():
       success, image = cap.read()
       height, width, _ = image.shape
-      acceptable_space = ((int(width*OFFSET), int(height*OFFSET)),
-                          (int(width-width*OFFSET), int(height-height*OFFSET)))
+      acceptable_space = ((int(width*CAMERA_OFFSET), int(height*CAMERA_OFFSET)),
+                          (int(width-width*CAMERA_OFFSET), int(height-height*CAMERA_OFFSET)))
       status = "outside"
       if not success:
         print("Ignoring empty camera frame.")
@@ -104,7 +110,14 @@ def get_hand_info():
               f"~angle_x: {angle_x:6.2f}º, angle_y: {angle_y:6.2f}º, closed metric {closed:.10f}, {status}", end="\r")
           mp_drawing.draw_landmarks(
               image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-          sock.sendall(struct.pack('dddd', angle_x, angle_y, angle_z, closed))
+          if SOCKET_CONNECTION and status == 'inside':
+            try:
+              sock.sendall(struct.pack('dddd', angle_x, angle_y, angle_z, closed))
+            except Exception as e:
+              print(str(e))
+              sock.close()
+              time.sleep(2)
+              return # block before rendering image on screen in order for to user to see that there is a problem with internet
 
       cv2.rectangle(image, acceptable_space[0], acceptable_space[1], color=(
           0, 255, 0) if status == "inside" else (0, 0, 255), thickness=2)
@@ -118,14 +131,10 @@ def get_hand_info():
 
 def is_inside_offset(hand_landmarks):
   for i in range(len(list(map(int, mp_hands.HandLandmark)))):
-    if not (hand_landmarks.landmark[i].x > OFFSET and hand_landmarks.landmark[i].x < 1-OFFSET and hand_landmarks.landmark[i].y > OFFSET and hand_landmarks.landmark[i].y < 1-OFFSET):
+    if not (hand_landmarks.landmark[i].x > CAMERA_OFFSET and hand_landmarks.landmark[i].x < 1-CAMERA_OFFSET and hand_landmarks.landmark[i].y > CAMERA_OFFSET and hand_landmarks.landmark[i].y < 1-CAMERA_OFFSET):
       return False
   return True
 
-
-#  #   ###
-# ###  ###
-#  #   ###
-
 if __name__ == "__main__":
-  get_hand_info()
+  while(True):
+    get_hand_info()

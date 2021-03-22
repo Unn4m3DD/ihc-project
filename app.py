@@ -12,13 +12,13 @@ mp_hands = mp.solutions.hands
 
 # connection
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-SOCKET_CONNECTION = True
+SOCKET_CONNECTION = False
 HOST = '127.0.0.1'
 PORT = 42069
 
 # camera
 CAMERA_OFFSET = 0.1
-NUM_HANDS = 1
+NUM_HANDS = 2
 
 def signal_handler(signal, frame):
     sock.close()
@@ -65,21 +65,26 @@ def get_hand_info():
 
             hands_list = []
             if results.multi_hand_landmarks:
-                for hand_landmarks in results.multi_hand_landmarks:
+                for i, hand_landmarks in enumerate(results.multi_hand_landmarks):
                     if is_inside_offset(hand_landmarks):
                         status = "inside"
-                    hand = Hand()
+                    hand = Hand(results.multi_handedness[i].classification[0])
                     hand.hand_calculations(hand_landmarks)
                     hands_list.append(hand)
                     mp_drawing.draw_landmarks(image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+
+                    # show hand informations
+                    wrist = hand_landmarks.landmark[hand.mp_hands.HandLandmark.WRIST]
+                    cv2.putText(image, hand.classification.label[0], (int(wrist.x*width-10), int(wrist.y*height-40)), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2, cv2.LINE_AA)
                     print(f"                                         ", end="\r")
-                    print(f"~angle_x: {hand.angle_x:6.2f}º, angle_y: {hand.angle_y:6.2f}º, closed metric {hand.closed:.10f}, {status}", end="\r")
+                    print(f"~angle_x: {hand.angle_x:6.2f}º, angle_y: {hand.angle_y:6.2f}º, closed metric {hand.closed:.10f}, mao: {hand.classification.label},{status}", end="\r")
             
             if SOCKET_CONNECTION and status == 'inside':
                 try:
                     if NUM_HANDS == 1:
                         sock.sendall(struct.pack('dddd', hands_list[0].angle_x, hands_list[0].angle_y, hands_list[0].angle_z, hands_list[0].closed))
                     elif NUM_HANDS == 2:
+                        sock.sendall(struct.pack('dddd', hands_list[0].angle_x, hands_list[0].angle_y, hands_list[0].angle_z, hands_list[0].closed)) # just for now
                         pass#sock.sendall(struct.pack('bddddbdddd', angle_x, angle_y, angle_z, closed))
                 except Exception as e:
                     print(str(e))
@@ -105,7 +110,7 @@ if __name__ == "__main__":
         while(True):
             get_hand_info()
     else:
-        print("number of hands not supported")
+        print("Error: Number of hands not supported")
 
   
 '''
